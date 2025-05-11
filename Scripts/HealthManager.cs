@@ -1,4 +1,4 @@
-using UnityEngine;
+п»їusing UnityEngine;
 using YG;
 
 public class HealthManager : MonoBehaviour
@@ -7,36 +7,27 @@ public class HealthManager : MonoBehaviour
     public GameObject[] heartIcons;
     public GameObject losePanel;
 
+    [Header("Audio")]
+    public AudioClip correctClip;
+    public AudioClip wrongClip;
+    private AudioSource audioSource;
+
     private int lives;
-    private int AdID = 1; //дубль награды
+    private int AdID = 1; // РґСѓР±Р»СЊ РЅР°РіСЂР°РґС‹
+
+    private void Awake()
+    {
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0f; // 2D-Р·РІСѓРє
+    }
+
     private void OnEnable()
     {
         YandexGame.RewardVideoEvent += Rewarded;
-    }
-
-    public void Rewarded(int id)
-    {
-        if (id != AdID) return; // Игнорируем события с другим ID
-
-        AddLives();
-    }
-    private void AddLives()
-    {
-        // Восстановить количество жизней до максимума
-        lives = heartIcons.Length;
-
-        // Обновить отображение жизней в UI
-        foreach (var h in heartIcons)
-        {
-            h.SetActive(true); // Сделать все иконки видимыми
-        }
-
-        // Закрыть панель "Game Over", если она была открыта
-        losePanel.SetActive(false);
-
-        FindObjectOfType<LetterFallManager>().PlaySpawning();
-        FindObjectOfType<PlayerMovement>().UnfreezePlayer();
-        //FindObjectOfType<LetterCell>().UnfreezeMovement();
     }
 
     private void OnDisable()
@@ -44,6 +35,7 @@ public class HealthManager : MonoBehaviour
         YandexGame.RewardVideoEvent -= Rewarded;
         Time.timeScale = 1f;
     }
+
     void Start()
     {
         lives = heartIcons.Length;
@@ -51,22 +43,56 @@ public class HealthManager : MonoBehaviour
         losePanel.SetActive(false);
     }
 
-    /// <summary>Снимает одну жизнь, обновляет UI и проверяет Game Over</summary>
-    public void ApplyDamage()
+    public void Rewarded(int id)
     {
-        if (lives <= 0) return;
+        if (id != AdID) return;
+        AddLives();
+    }
 
-        lives--;
-        if (lives >= 0 && lives < heartIcons.Length)
-            heartIcons[lives].SetActive(false);
+    private void AddLives()
+    {
+        lives = heartIcons.Length;
+        foreach (var h in heartIcons)
+            h.SetActive(true);
 
-        if (lives <= 0)
+        losePanel.SetActive(false);
+        FindObjectOfType<LetterFallManager>().PlaySpawning();
+        FindObjectOfType<PlayerMovement>().UnfreezePlayer();
+    }
+
+    /// <summary>
+    /// Р’С‹Р·С‹РІР°РµС‚СЃСЏ РїСЂРё СЃР±РѕСЂРµ Р±СѓРєРІС‹.
+    /// isCorrect == true  в†’ РІРµСЂРЅР°СЏ Р±СѓРєРІР° (correctClip)
+    /// isCorrect == false в†’ РЅРµРІРµСЂРЅР°СЏ Р±СѓРєРІР° (wrongClip + РїРѕС‚РµСЂСЏ Р¶РёР·РЅРё)
+    /// </summary>
+    public void ApplyDamage(bool isCorrect)
+    {
+        // 1) РџСЂРѕРёРіСЂС‹РІР°РµРј Р·РІСѓРє
+        AudioClip clip = isCorrect ? correctClip : wrongClip;
+        if (clip != null)
         {
-            losePanel.SetActive(true);
-            // Остановите спавн и заморозьте игрока
-            FindObjectOfType<LetterFallManager>().StopSpawning();
-            FindObjectOfType<PlayerMovement>().FreezePlayer();
-            //FindObjectOfType<LetterCell>().FreezeMovement();
+            audioSource.PlayOneShot(clip);
+        }
+        else
+        {
+            Debug.LogWarning($"HealthManager: {(isCorrect ? "correctClip" : "wrongClip")} РЅРµ РЅР°Р·РЅР°С‡РµРЅ!");
+        }
+
+        // 2) Р•СЃР»Рё Р±СѓРєРІР° РЅРµРІРµСЂРЅР°СЏ вЂ” СЃРЅРёРјР°РµРј Р¶РёР·РЅСЊ Рё РїСЂРѕРІРµСЂСЏРµРј Game Over
+        if (!isCorrect)
+        {
+            if (lives <= 0) return;
+
+            lives--;
+            if (lives >= 0 && lives < heartIcons.Length)
+                heartIcons[lives].SetActive(false);
+
+            if (lives <= 0)
+            {
+                losePanel.SetActive(true);
+                FindObjectOfType<LetterFallManager>().StopSpawning();
+                FindObjectOfType<PlayerMovement>().FreezePlayer();
+            }
         }
     }
 }

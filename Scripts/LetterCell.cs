@@ -70,12 +70,16 @@ public class LetterCell : MonoBehaviour
         // проверяем слово
         bool correct = wordManager.HandleCaughtLetter(caught);
 
+        // Всегда вызываем ApplyDamage с аргументом isCorrect:
+        healthManager.ApplyDamage(correct);
+
+        // Если буква неверная — качаем камеру и UI:
         if (!correct)
         {
-            healthManager.ApplyDamage();
             cameraShake.Shake();
             uiShake.Shake();
         }
+
         Destroy(gameObject);
     }
 }
